@@ -4,6 +4,8 @@
 
 from collections import OrderedDict
 from calibre.web.feeds.news import BasicNewsRecipe
+from calibre.ebooks.BeautifulSoup import BeautifulSoup, BeautifulStoneSoup, Tag, NavigableString
+
 
 the_root_url = 'https://www.eff.org/rss/updates.xml'
 
@@ -23,11 +25,23 @@ class EconomicAndPoliticalWeekly(BasicNewsRecipe):
     publication_type       = 'newspaper'
     masthead_url           = 'http://www.epw.in/system/files/epw_masthead.png'
 
+
     #keep_only_tags = [
     #    dict(id=['block-system-main', 'page-title']),
     #]
 
-    def parse_index(self):
+    def parse_feeds(self):
+        # from xml.etree import ElementTree as ET
+        # import urllib2
+        # from calibre.web.feeds.news import BasicNewsRecipe
+
+        # rss_string = urllib2.urlopen(the_root_url).read()
+        # root = ET.parse(rss_string).getroot()
+
+        feeds = BasicNewsRecipe.parse_feeds(self)
+
+        # import code; code.interact(local=locals())  # debug
+
         soup = self.index_to_soup(the_root_url)
         # finds a node encapsulating a list of articles
         main_container = soup.find('channel')
@@ -48,6 +62,9 @@ class EconomicAndPoliticalWeekly(BasicNewsRecipe):
                 self.log('\n\n' + section)
 
 
+
+
+
             title = self.tag_to_string(div.title)
             url = self.tag_to_string(div.find('link'))
             desc = self.tag_to_string(div.find('description'))
@@ -58,10 +75,7 @@ class EconomicAndPoliticalWeekly(BasicNewsRecipe):
             # Add title, url, and desc to the 2D array we're building of all the articles
             sections[current_section].append({'title':title, 'url':url, 'description':desc})
 
-        import code; code.interact(local=locals())  # debug
+        # feeds = BasicNewsRecipe.parse_feeds(self)
+        # x = sections['Encrypting the Web'][0]
 
         return [(section_name, child_articles) for section_name, child_articles in sections.iteritems() if child_articles]
-
-
-
-
