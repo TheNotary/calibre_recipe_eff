@@ -6,47 +6,44 @@ from collections import OrderedDict
 from calibre.web.feeds.news import BasicNewsRecipe
 from calibre.ebooks.BeautifulSoup import BeautifulSoup, BeautifulStoneSoup, Tag, NavigableString
 
-
+# production
 the_root_url = 'https://www.eff.org/rss/updates.xml'
+banner_url = 'https://www.eff.org/sites/all/themes/frontier/images/logo_full.png'
 
-class EconomicAndPoliticalWeekly(BasicNewsRecipe):
+# testing
+# the_root_url = 'http://127.0.0.1/updates.xml'
+# banner_url = 'http://127.0.0.1/logo_full.png'
+
+class ElectronicFrontierFoundationHandling(BasicNewsRecipe):
     title                  = 'Electronic Frontier Foundation'
     __author__             = 'TheNotary'
-    description            = 'Technology and Political news'
+    description            = 'Notes and publications from an organization defending human rights in the digital world.'
     publisher              = 'Electronic Frontier Foundation'
     category               = 'news, politics, technology'
     oldest_article         = 7
     max_articles_per_feed  = 100
     no_stylesheets         = True
     use_embedded_content   = False
-    simultaneous_downloads = 1
+    simultaneous_downloads = 4
     encoding               = 'utf-8'
     language               = 'en_US'
     publication_type       = 'newspaper'
-    masthead_url           = 'http://www.epw.in/system/files/epw_masthead.png'
+    masthead_url           = banner_url
+
+    keep_only_tags = [                                  # keep...
+        dict(name='div', attrs={'class':'dateauthor'}), # date + authors
+        dict(name='h2', attrs={'class':'node-title'}),  # article headline
+        # article body
+        dict(name='div', attrs={'class':'field field-name-body field-type-text-with-summary field-label-hidden'})
+    ]
+
+    # remove tags:
+    # dict(name='div', attrs={'class':'field-type-taxonomy-term-reference'})
 
     feeds = [('EFF', the_root_url)]
 
-
-    #keep_only_tags = [
-    #    dict(id=['block-system-main', 'page-title']),
-    #]
-
-    def parse_feeds(self):
-        # from xml.etree import ElementTree as ET
-        # import urllib2
-        # from calibre.web.feeds.news import BasicNewsRecipe
-
-        # rss_string = urllib2.urlopen(the_root_url).read()
-        # root = ET.parse(rss_string).getroot()
-
-        feeds = BasicNewsRecipe.parse_feeds(self)
-
-        import code; code.interact(local=locals())  # debug
-
-        # for feed in feeds:
-
-
+    def parse_index(self):
+        import re
         soup = self.index_to_soup(the_root_url)
         # finds a node encapsulating a list of articles
         main_container = soup.find('channel')
@@ -54,25 +51,23 @@ class EconomicAndPoliticalWeekly(BasicNewsRecipe):
         sections = OrderedDict()
         current_section = None
 
-        # For each div representing an item in the article container
-        for div in main_container.findAll('item'):
-            # The $('.block-inner h2') contains a string of text serving as a section
-            # section = self.tag_to_string(div.findParent(attrs={'class':'block-inner'}).find('h2'))
-            section = self.tag_to_string(div.find('category'))
+        # For each item representing an item in the article container
+        for item in main_container.findAll('item'):
+            section = self.tag_to_string(item.find('category'))
 
+            if section == '':
+                section = self.deeply_search_category(item)
+
+            # Sometimes it says 'unknown feed' so None show up in category?
             if section != current_section: # switch this to be the current section...
                 current_section = section
                 if section not in sections:
                     sections[section] = []  # create an empty array for this section
                 self.log('\n\n' + section)
 
-
-
-
-
-            title = self.tag_to_string(div.title)
-            url = self.tag_to_string(div.find('link'))
-            desc = self.tag_to_string(div.find('description'))
+            title = self.tag_to_string(item.title)
+            url = re.findall(r'<link \/>(.*)\n', str(item))[0]
+            desc = self.tag_to_string(item.find('description'))
 
             self.log('\t', title, url)
             self.log('\t\t', desc)
@@ -80,7 +75,17 @@ class EconomicAndPoliticalWeekly(BasicNewsRecipe):
             # Add title, url, and desc to the 2D array we're building of all the articles
             sections[current_section].append({'title':title, 'url':url, 'description':desc})
 
-        # feeds = BasicNewsRecipe.parse_feeds(self)
-        # x = sections['Encrypting the Web'][0]
-
+        # import code; code.interact(local=locals())  # debug
         return [(section_name, child_articles) for section_name, child_articles in sections.iteritems() if child_articles]
+
+    def deeply_search_category(self, item):
+        return self.detect_press(item) or 'Misc'
+
+    # Looks to see if the feed is a press release and if so returns 'Press Release'
+    # else returns False
+    def detect_press(self, item):
+        import re
+        url = re.findall(r'<link \/>(.*)\n', str(item))[0]
+        occurances_of_press = len(re.findall(r'www.eff.org/press/releases/', url))
+
+        return 'Press Release' if occurances_of_press > 0 else False
