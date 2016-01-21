@@ -25,6 +25,8 @@ class EconomicAndPoliticalWeekly(BasicNewsRecipe):
     publication_type       = 'newspaper'
     masthead_url           = 'http://www.epw.in/system/files/epw_masthead.png'
 
+    feeds = [('EFF', the_root_url)]
+
 
     #keep_only_tags = [
     #    dict(id=['block-system-main', 'page-title']),
@@ -40,7 +42,10 @@ class EconomicAndPoliticalWeekly(BasicNewsRecipe):
 
         feeds = BasicNewsRecipe.parse_feeds(self)
 
-        # import code; code.interact(local=locals())  # debug
+        import code; code.interact(local=locals())  # debug
+
+        # for feed in feeds:
+
 
         soup = self.index_to_soup(the_root_url)
         # finds a node encapsulating a list of articles
